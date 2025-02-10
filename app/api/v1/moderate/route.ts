@@ -8,27 +8,7 @@ import * as schema from "@/db/schema";
 import { validateApiKey } from "@/services/api-keys";
 import { createModeration, moderate } from "@/services/moderations";
 import { createOrUpdateRecord } from "@/services/records";
-
-async function parseRequestDataWithSchema<T>(
-  req: NextRequest,
-  schema: ZodSchema<T>,
-  adapter?: (data: unknown) => unknown,
-): Promise<{ data: T; error?: never } | { data?: never; error: { message: string } }> {
-  try {
-    let body = await req.json();
-    if (adapter) {
-      body = adapter(body);
-    }
-    const result = schema.safeParse(body);
-    if (result.success) {
-      return { data: result.data };
-    }
-    const { message } = fromZodError(result.error);
-    return { error: { message } };
-  } catch {
-    return { error: { message: "Invalid request body" } };
-  }
-}
+import { parseRequestDataWithSchema } from "@/app/api/parse";
 
 export async function POST(req: NextRequest) {
   const { data, error } = await parseRequestDataWithSchema(req, ModerateRequestData, moderateAdapter);
@@ -46,10 +26,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { message: "Invalid API key" } }, { status: 401 });
   }
 
-  let recordUser: typeof schema.recordUsers.$inferSelect | undefined;
+  let user: typeof schema.users.$inferSelect | undefined;
   if (data.user) {
-    [recordUser] = await db
-      .insert(schema.recordUsers)
+    [user] = await db
+      .insert(schema.users)
       .values({
         clerkOrganizationId,
         clientId: data.user.clientId,
@@ -61,7 +41,7 @@ export async function POST(req: NextRequest) {
         stripeAccountId: data.user.stripeAccountId,
       })
       .onConflictDoUpdate({
-        target: schema.recordUsers.clientId,
+        target: schema.users.clientId,
         set: {
           clientUrl: data.user.clientUrl,
           email: data.user.email,
@@ -84,7 +64,7 @@ export async function POST(req: NextRequest) {
     text: content.text,
     imageUrls: content.imageUrls,
     clientUrl: data.clientUrl,
-    recordUserId: recordUser?.id,
+    userId: user?.id,
   });
 
   const result = await moderate({

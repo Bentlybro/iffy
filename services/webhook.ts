@@ -6,30 +6,41 @@ import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 import { decrypt, encrypt } from "./encrypt";
 
+type PublicUser = {
+  id: string;
+  clientId: string;
+  clientUrl?: string;
+  protected: boolean;
+  status?: (typeof schema.userActionStatus.enumValues)[number];
+  statusUpdatedAt?: string;
+  statusUpdatedVia?: (typeof schema.via.enumValues)[number];
+};
+
+type PublicRecord = {
+  id: string;
+  clientId: string;
+  clientUrl?: string;
+  name: string;
+  entity: string;
+  status?: (typeof schema.moderationStatus.enumValues)[number];
+  statusUpdatedAt?: string;
+  statusUpdatedVia?: (typeof schema.via.enumValues)[number];
+};
+
+type PublicModeration = {
+  id: string;
+};
+
+type PublicUserAction = {
+  id: string;
+};
+
 export type WebhookEvents = {
-  "record.flagged": {
-    entity: string;
-    clientId: string;
-    user?: {
-      protected: true;
-    };
-  };
-  "record.compliant": {
-    entity: string;
-    clientId: string;
-    user?: {
-      protected: true;
-    };
-  };
-  "user.suspended": {
-    clientId: string;
-  };
-  "user.compliant": {
-    clientId: string;
-  };
-  "user.banned": {
-    clientId: string;
-  };
+  "record.flagged": PublicModeration & { payload: PublicRecord };
+  "record.compliant": PublicModeration & { payload: PublicRecord };
+  "user.suspended": PublicUserAction & { payload: PublicUser };
+  "user.compliant": PublicUserAction & { payload: PublicUser };
+  "user.banned": PublicUserAction & { payload: PublicUser };
 };
 
 export async function createWebhook({ clerkOrganizationId, url }: { clerkOrganizationId: string; url: string }) {
@@ -80,11 +91,11 @@ export async function updateWebhookUrl({
 export async function sendWebhook<T extends keyof WebhookEvents>({
   id,
   event,
-  payload,
+  data,
 }: {
   id: string;
   event: T;
-  payload: WebhookEvents[T];
+  data: WebhookEvents[T];
 }) {
   const webhook = await db.query.webhookEndpoints.findFirst({
     where: eq(schema.webhookEndpoints.id, id),
@@ -97,7 +108,7 @@ export async function sendWebhook<T extends keyof WebhookEvents>({
   webhook.secret = decrypt(webhook.secret);
 
   const timestamp = Date.now().toString();
-  const body = JSON.stringify({ event, payload, timestamp });
+  const body = JSON.stringify({ event, timestamp, ...data });
   const signature = crypto.createHmac("sha256", webhook.secret).update(body).digest("hex");
 
   try {
