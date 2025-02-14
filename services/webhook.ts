@@ -11,6 +11,7 @@ type PublicUser = {
   clientId: string;
   clientUrl?: string;
   protected: boolean;
+  metadata?: Record<string, string>;
   status?: (typeof schema.userActionStatus.enumValues)[number];
   statusUpdatedAt?: string;
   statusUpdatedVia?: (typeof schema.via.enumValues)[number];
@@ -22,6 +23,7 @@ type PublicRecord = {
   clientUrl?: string;
   name: string;
   entity: string;
+  metadata?: Record<string, string>;
   status?: (typeof schema.moderationStatus.enumValues)[number];
   statusUpdatedAt?: string;
   statusUpdatedVia?: (typeof schema.via.enumValues)[number];
@@ -97,36 +99,40 @@ export async function sendWebhook<T extends keyof WebhookEvents>({
   event: T;
   data: WebhookEvents[T];
 }) {
-  const webhook = await db.query.webhookEndpoints.findFirst({
-    where: eq(schema.webhookEndpoints.id, id),
-  });
-
-  if (!webhook) {
-    throw new Error("Webhook not found");
-  }
-
-  webhook.secret = decrypt(webhook.secret);
-
-  const timestamp = Date.now().toString();
-  const body = JSON.stringify({ event, timestamp, ...data });
-  const signature = crypto.createHmac("sha256", webhook.secret).update(body).digest("hex");
-
-  try {
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-Signature": signature,
-      },
-      body,
+  return await db.transaction(async (tx) => {
+    const webhook = await tx.query.webhookEndpoints.findFirst({
+      where: eq(schema.webhookEndpoints.id, id),
     });
 
-    if (!response.ok) {
-      throw new Error(`Error sending webhook: ${response.statusText}`);
+    if (!webhook) {
+      throw new Error("Webhook not found");
     }
-  } catch (error) {
-    console.error("Error sending webhook:", error);
-    throw error;
-  }
+
+    webhook.secret = decrypt(webhook.secret);
+
+    const timestamp = Date.now().toString();
+    const body = JSON.stringify({ event, timestamp, ...data });
+    const signature = crypto.createHmac("sha256", webhook.secret).update(body).digest("hex");
+
+    try {
+      const response = await fetch(webhook.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-Signature": signature,
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error sending webhook: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error sending webhook:", error);
+      throw error;
+    }
+
+    return webhook;
+  });
 }
