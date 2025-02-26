@@ -2,10 +2,10 @@ import { validateAppealToken } from "@/services/appeals";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Date } from "@/components/date";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import db from "@/db";
 import * as schema from "@/db/schema";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AppealForm } from "./form";
 import { Separator } from "@/components/ui/separator";
 import { findOrCreateOrganizationSettings } from "@/services/organization-settings";
@@ -56,7 +56,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
   if (latestAction?.status === "Banned") {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-16">
-        <Card className="w-full max-w-screen-sm">
+        <Card className="w-full max-w-(--breakpoint-sm)">
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle className="text-lg lowercase">{user.email}</CardTitle>
@@ -72,7 +72,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
   if (latestAction?.status === "Compliant") {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-16">
-        <Card className="w-full max-w-screen-sm">
+        <Card className="w-full max-w-(--breakpoint-sm)">
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle className="text-lg lowercase">{user.email}</CardTitle>
@@ -88,7 +88,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
   if (latestAppeal) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center p-16">
-        <Card className="w-full max-w-screen-sm">
+        <Card className="w-full max-w-(--breakpoint-sm)">
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
               <CardTitle className="text-lg lowercase">{user.email}</CardTitle>
@@ -117,7 +117,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center p-16">
-      <Card className="w-full max-w-screen-sm">
+      <Card className="w-full max-w-(--breakpoint-sm)">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardTitle className="text-lg lowercase">{user.email}</CardTitle>
@@ -144,14 +144,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
                     </TableCell>
                     <TableCell>{badge}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger className="text-left">{record.updatedAt.toLocaleDateString()}</TooltipTrigger>
-                          <TooltipContent>
-                            <p>{record.updatedAt.toISOString()}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Date date={record.updatedAt} />
                     </TableCell>
                   </TableRow>
                 );

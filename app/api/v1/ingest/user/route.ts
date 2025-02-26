@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { IngestUserRequestData } from "./schema";
-import db from "@/db";
-import * as schema from "@/db/schema";
 import { validateApiKey } from "@/services/api-keys";
 import { parseRequestDataWithSchema } from "@/app/api/parse";
 import { createOrUpdateUser } from "@/services/users";
@@ -29,7 +27,7 @@ export async function POST(req: NextRequest) {
     email: data.email,
     name: data.name,
     username: data.username,
-    protected: data.protected,
+    initialProtected: data.protected,
     stripeAccountId: data.stripeAccountId,
     metadata: data.metadata,
   });
