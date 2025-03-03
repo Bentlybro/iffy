@@ -18,6 +18,7 @@ import { CopyButton } from "@/components/copy-button";
 import { eq, and, desc } from "drizzle-orm";
 import { StripeAccount } from "./stripe-account";
 import { notFound } from "next/navigation";
+import { parseMetadata } from "@/services/metadata";
 
 export async function UserDetail({ clerkOrganizationId, id }: { clerkOrganizationId: string; id: string }) {
   const user = await db.query.users.findFirst({
@@ -35,6 +36,8 @@ export async function UserDetail({ clerkOrganizationId, id }: { clerkOrganizatio
   if (!user) {
     return notFound();
   }
+
+  const metadata = user.metadata ? parseMetadata(user.metadata) : undefined;
 
   return (
     <div>
@@ -55,7 +58,7 @@ export async function UserDetail({ clerkOrganizationId, id }: { clerkOrganizatio
                   <ShieldCheck className="h-4 w-4 text-stone-500 dark:text-zinc-500" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Protected User</p>
+                  <p>Protected</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -66,7 +69,7 @@ export async function UserDetail({ clerkOrganizationId, id }: { clerkOrganizatio
                   <ShieldOff className="h-4 w-4 text-stone-300 dark:text-zinc-500" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Test Mode</p>
+                  <p>Not Protected</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -120,53 +123,31 @@ export async function UserDetail({ clerkOrganizationId, id }: { clerkOrganizatio
           <StripeAccount clerkOrganizationId={clerkOrganizationId} stripeAccountId={user.stripeAccountId} />
         </>
       )}
-      {user.actions[0] && (
+      {metadata && (
         <>
           <Separator className="my-2" />
           <Section>
-            <SectionTitle>Latest User Action</SectionTitle>
+            <SectionTitle>Metadata</SectionTitle>
             <SectionContent>
               <dl className="grid gap-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Status</dt>
-                  <dd>{formatUserActionStatus(user.actions[0])}</dd>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Via</dt>
-                  <dd>{formatVia(user.actions[0])}</dd>
-                </div>
-                {user.actions[0].reasoning && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <dt className="text-stone-500 dark:text-zinc-500">Reasoning</dt>
-                    <dd>{user.actions[0].reasoning}</dd>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Created At</dt>
-                  <dd>
-                    <DateFull date={user.actions[0].createdAt} />
-                  </dd>
-                </div>
-                {user.actions[0].appeal && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <dt className="text-stone-500 dark:text-zinc-500">Appeal</dt>
+                {Object.entries(metadata).map(([key, value]) => (
+                  <div key={key} className="grid grid-cols-2 gap-4">
+                    <dt className="font-mono text-stone-500 dark:text-zinc-500">{key}</dt>
                     <dd>
-                      <Button asChild variant="link" className="text-md -mx-4 -my-2 block w-full truncate font-normal">
-                        <Link href={`/dashboard/inbox/${user.actions[0].appeal.id}`}>Appeal</Link>
-                      </Button>
+                      <CodeInline>{value}</CodeInline>
                     </dd>
                   </div>
-                )}
+                ))}
               </dl>
             </SectionContent>
           </Section>
         </>
       )}
-      {user.actions.length > 1 && (
+      {user.actions.length > 0 && (
         <>
           <Separator className="my-2" />
           <Section>
-            <SectionTitle>All Actions</SectionTitle>
+            <SectionTitle>Actions</SectionTitle>
             <SectionContent>
               <ActionsTable actions={user.actions} />
             </SectionContent>

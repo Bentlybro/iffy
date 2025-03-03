@@ -1,6 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { formatModerationStatus, formatRecordStatus, formatUserStatus, formatVia } from "@/lib/badges";
-import { ExternalLink, FlaskConical, FlaskConicalOff } from "lucide-react";
+import { ExternalLink, FlaskConical, FlaskConicalOff, ShieldCheck, ShieldOff } from "lucide-react";
 import { RecordImages } from "./record-images";
 import { Code, CodeInline } from "@/components/code";
 import { Header, HeaderContent, HeaderPrimary, HeaderSecondary, HeaderActions } from "@/components/sheet/header";
@@ -18,6 +18,7 @@ import { CopyButton } from "@/components/copy-button";
 import * as schema from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import db from "@/db";
+import { parseMetadata } from "@/services/metadata";
 
 export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizationId: string; id: string }) {
   const record = await db.query.records.findFirst({
@@ -45,6 +46,8 @@ export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizat
     return null;
   }
 
+  const metadata = record.metadata ? parseMetadata(record.metadata) : undefined;
+
   const rules = record.moderations[0]?.moderationsToRules.map((moderationToRule) => moderationToRule.rule);
 
   return (
@@ -55,6 +58,29 @@ export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizat
           <HeaderSecondary>{record.entity}</HeaderSecondary>
         </HeaderContent>
         <HeaderActions className="flex items-center gap-4">
+          {record.protected ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <ShieldCheck className="h-4 w-4 text-stone-500 dark:text-zinc-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Protected</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <ShieldOff className="h-4 w-4 text-stone-300 dark:text-zinc-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Not Protected</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {record.moderations[0]?.testMode ? (
             <TooltipProvider>
               <Tooltip>
@@ -62,7 +88,7 @@ export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizat
                   <FlaskConical className="h-4 w-4 text-stone-500 dark:text-zinc-500" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Test Mode</p>
+                  <p>Test Mode On</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -140,6 +166,26 @@ export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizat
           </dl>
         </SectionContent>
       </Section>
+      {metadata && (
+        <>
+          <Separator className="my-2" />
+          <Section>
+            <SectionTitle>Metadata</SectionTitle>
+            <SectionContent>
+              <dl className="grid gap-3">
+                {Object.entries(metadata).map(([key, value]) => (
+                  <div key={key} className="grid grid-cols-2 gap-4">
+                    <dt className="font-mono text-stone-500 dark:text-zinc-500">{key}</dt>
+                    <dd>
+                      <CodeInline>{value}</CodeInline>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </SectionContent>
+          </Section>
+        </>
+      )}
       <Separator className="my-2" />
       <Section>
         <SectionTitle>Content</SectionTitle>
@@ -148,47 +194,11 @@ export async function RecordDetail({ clerkOrganizationId, id }: { clerkOrganizat
           {record.imageUrls.length > 0 ? <RecordImages imageUrls={record.imageUrls} /> : null}
         </SectionContent>
       </Section>
-      {record.moderations[0] && (
+      {record.moderations.length > 0 && (
         <>
           <Separator className="my-2" />
           <Section>
-            <SectionTitle>Latest Moderation</SectionTitle>
-            <SectionContent>
-              <dl className="grid gap-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Status</dt>
-                  <dd>{formatModerationStatus(record.moderations[0])}</dd>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Via</dt>
-                  <dd>{formatVia(record.moderations[0])}</dd>
-                </div>
-                {rules && rules.length > 0 && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <dt className="text-stone-500 dark:text-zinc-500">Rules</dt>
-                    <dd>{rules.map((rule) => (rule.preset ? rule.preset.name : rule.name)).join(", ")}</dd>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Reasoning</dt>
-                  <dd>{record.moderations[0]?.reasoning}</dd>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <dt className="text-stone-500 dark:text-zinc-500">Created At</dt>
-                  <dd>
-                    <DateFull date={record.moderations[0].createdAt} />
-                  </dd>
-                </div>
-              </dl>
-            </SectionContent>
-          </Section>
-        </>
-      )}
-      {record.moderations.length > 1 && (
-        <>
-          <Separator className="my-2" />
-          <Section>
-            <SectionTitle>All Moderations</SectionTitle>
+            <SectionTitle>Moderations</SectionTitle>
             <SectionContent>
               <ModerationsTable moderations={record.moderations} />
             </SectionContent>

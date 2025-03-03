@@ -6,7 +6,8 @@ import { SQL } from "drizzle-orm";
 import db from "@/db";
 import * as schema from "@/db/schema";
 import { validateApiKey } from "@/services/api-keys";
-import { parseRequestDataWithSchema } from "@/app/api/parse";
+import { parseQueryParams } from "@/app/api/parse";
+import { parseMetadata } from "@/services/metadata";
 
 const ListRecordsRequestData = z.object({
   limit: z.coerce.number().min(1).max(100).default(10),
@@ -29,14 +30,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: { message: "Invalid API key" } }, { status: 401 });
   }
 
-  const { data, error } = await parseRequestDataWithSchema(req, ListRecordsRequestData);
+  const { data, error } = await parseQueryParams(req, ListRecordsRequestData);
   if (error) {
     return NextResponse.json({ error }, { status: 400 });
   }
 
-  const { limit, starting_after, ending_before, user, entity, clientId, status } = data as z.infer<
-    typeof ListRecordsRequestData
-  >;
+  const { limit, starting_after, ending_before, user, entity, clientId, status } = data;
 
   let conditions: SQL<unknown>[] = [
     eq(schema.records.clerkOrganizationId, clerkOrganizationId),
@@ -93,6 +92,7 @@ export async function GET(req: NextRequest) {
       clientUrl: schema.records.clientUrl,
       name: schema.records.name,
       entity: schema.records.entity,
+      protected: schema.records.protected,
       metadata: schema.records.metadata,
       createdAt: schema.records.createdAt,
       updatedAt: schema.records.updatedAt,
@@ -117,9 +117,10 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    data: records.map(({ userId, ...record }) => ({
+    data: records.map(({ userId, metadata, ...record }) => ({
       ...record,
       user: userId,
+      metadata: metadata ? parseMetadata(metadata) : undefined,
     })),
     has_more: hasMore,
   });
